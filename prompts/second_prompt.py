@@ -24,13 +24,29 @@ def dl_model():
 
         return prompt
 
+#     def prompt_v2(self, task_requirement, api_docs, dll):
+
+#         api_doc = "".join(api_docs) # 拼接每个 api_doc 为多段文字,使其可以显示出换行格式
+#         prompt = f"""
+# As a developer specializing in deep learning, you are expected to complete the following DL code generation task: \n# Task:\n{task_requirement}\n
+# Please complete above task according to the API usage tutorial in the following API document: \n{api_doc}\n
+# Please import all necessary functional APIs of {dll}, then complete python code in the 'dl_model()' function and return the constructed 'model'.
+# ```python
+# def dl_model():
+
+#     return model
+# ```
+#     """
+
+#         return prompt
+
     def prompt_v2(self, task_requirement, api_docs, dll):
 
         api_doc = "".join(api_docs) # 拼接每个 api_doc 为多段文字,使其可以显示出换行格式
         prompt = f"""
 As a developer specializing in deep learning, you are expected to complete the following DL code generation task: \n# Task:\n{task_requirement}\n
-Please complete above task according to the API usage tutorial in the following API document: \n{api_doc}\n
-Please import all necessary functional APIs of {dll}, then complete python code in the 'dl_model()' function and return the constructed 'model'.
+Please analyze the following API usage tutorial to ensure your code is executable: \n# API Usage Tutorial:{api_doc}\n
+Please import all necessary Functional APIs of {dll}, then complete python code in the 'dl_model()' function and return the constructed 'model'.
 ```python
 def dl_model():
 
