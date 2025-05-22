@@ -212,10 +212,10 @@ class MultiDLcodeGeneration:
 
                         # 只进行层相关layer API的检索，避免提示词过长
                         if 'layer' in candidate_api_name:
-                            logger.info(f"进行检索: {candidate_api_name}")
+                            logger.info(f"开始检索: {candidate_api_name}")
                             # 进行关键词检索, 注意每次只取top-1的结果
                             results = self.bm25searcher.main(query_str=candidate_api_name, limit=1)
-                            if not results:
+                            if not results: # 如果 results 为空
                                 logger.info(f"未找到与 {candidate_api_name} 匹配的 API 文档")
                                 continue
 
@@ -223,15 +223,16 @@ class MultiDLcodeGeneration:
                                 api_doc = (
                                     f"{result['api_name']}\n"
                                     # f"{result['api_description']}\n"
-                                    f"{result['api_signature']}\n"
+                                    # f"{result['api_signature']}\n"
                                     # f"{result['api_details']}\n"
                                     f"{result['api_usage_description']}\n"
                                     f"{result['api_parameters']}\n"
                                     # f"{result['api_usage_example']}\n\n"
                                 )
-                                api_docs.append(api_doc)
-                                api_docs.append("-"*100)
+
                                 api_docs.append("\n")
+                                api_docs.append(api_doc)
+                                # api_docs.append("-"*100)
 
                             api_name_set.add(candidate_api_name)
         except:
