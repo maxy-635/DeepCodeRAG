@@ -8,6 +8,7 @@ import openai
 import time
 import argparse
 import torch
+import traceback
 from loguru import logger
 from utils.chat2deepseek import Chat2DeepSeekLLM
 from utils.chat2gemma import Chat2GemmaLLM
@@ -70,7 +71,7 @@ class DLcodeGeneration:
 
         # 此处的APIError是openai.error.APIError，需要对Replication的APIError进行修改
         except (openai.error.APIError) as e:  
-            print(f"Encountered error: {e}")
+            logger.error(f"Encountered error: {e}")
             time.sleep(5)
             return self.prompt2llm(
                 model_id=model_id,
@@ -211,11 +212,7 @@ class MultiDLcodeGeneration:
 
                         # 只进行层相关layer API的检索，避免提示词过长
                         if 'layer' in candidate_api_name:
-                            # 下面这行 关于tf.keras.layers.MaxPooling2D的修改是 为了 GPT-4o-mini
-                            if candidate_api_name == 'tf.keras.layers.MaxPooling2D':
-                                candidate_api_name = 'tf.keras.layers.MaxPool2D'
-
-                            logger.info(f"第二次关键词检索的candidate_api_names: {candidate_api_name}")
+                            logger.info(f"进行检索: {candidate_api_name}")
                             # 进行关键词检索, 注意每次只取top-1的结果
                             results = self.bm25searcher.main(query_str=candidate_api_name, limit=1)
                             if not results:
@@ -223,30 +220,27 @@ class MultiDLcodeGeneration:
                                 continue
 
                             for result in results:
-                                # 0521修改，只取用top-5的api_parameters，此处输出的api_parameters 长字符串
-                                # 0521修改，取消 api_signature 的默认参数值
-                                # 0521修改，整合 api_description 和 api_details
                                 api_doc = (
-                                    f"{result['api_name']}\n\n"
+                                    f"{result['api_name']}\n"
                                     # f"{result['api_description']}\n"
-                                    f"{result['api_signature']}\n\n"
+                                    f"{result['api_signature']}\n"
                                     # f"{result['api_details']}\n"
-                                    f"{result['api_usage_description']}\n\n"
-                                    f"{result['api_parameters']}\n\n"
-                                    f"{result['api_usage_example']}\n\n"
+                                    f"{result['api_usage_description']}\n"
+                                    f"{result['api_parameters']}\n"
+                                    # f"{result['api_usage_example']}\n\n"
                                 )
                                 api_docs.append(api_doc)
+                                api_docs.append("-"*100)
+                                api_docs.append("\n")
 
                             api_name_set.add(candidate_api_name)
-        except Exception as e:
-            import traceback
-            # 打印完整的异常信息
+        except:
             logger.info(f"执行代码时发生错误: {traceback.format_exc()}")
         
         # ----------------------------------------------------------------------------------------
         # 4. 第二次向LLM提问，使用完备的 API文档信息 作为上下文，得到LLM判断得到的精选API
         second_prompt = SecondPromptDesigner().prompt_v2(task_requirement, api_docs, dll='Tensorflow')
-        prompt, response = dlcode_generator.prompt2llm(
+        response = dlcode_generator.prompt2llm(
             model_id=self.model,
             prompting=second_prompt,
             tasks_requirement=task_requirement,
@@ -270,7 +264,7 @@ class MultiDLcodeGeneration:
         benchmark_files = get_all_files(directory=benchmark_path, file_type=".yaml")
 
         logger.info(f"开始进行深度学习代码生成任务")
-        for yaml_file in benchmark_files:  
+        for yaml_file in benchmark_files[:1]:  
             task_id = "/" + os.path.basename(yaml_file)[:-5]
             task= read_yaml_data(yaml_file)
             task_requirement = task['Requirement']
