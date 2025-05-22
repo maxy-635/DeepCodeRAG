@@ -212,10 +212,9 @@ if __name__ == "__main__":
     #         "gemma_2_9b_it",
     #         "meta_llama_3_1_8b_instruct"]
 
-    llms = ["meta_llama_3_1_8b_instruct"]
-    # llms = ["gpt_4o_mini"]
+    llms = []
 
-    experiment_id = "models_DeepEvalRAG_0519_v3"
+    experiment_id = ""
 
     compile_validation = Validation()
     compile_validation.main(promptings, llms, experiment_id)

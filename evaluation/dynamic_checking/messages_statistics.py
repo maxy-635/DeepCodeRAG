@@ -332,8 +332,18 @@ if __name__ == '__main__':
     save_path = "./evaluation/dynamic_checking/report/DeepCodeRAG"
 
     promptings = ["zeroshot_rag"]
-    llms = ["gpt_4o_mini"]
-    experiment_id = "DeepEvalRAG_gpt_v2_repeat"
+    
+    # llms = ["gpt_4o",
+    #         "gpt_4o_mini",
+    #         "codegemma_7b_it",
+    #         "codellama_7b_instruct_hf",
+    #         "deepseek_coder_v2_lite_instruct",
+    #         "deepseek_v2_lite_chat",
+    #         "gemma_2_9b_it",
+    #         "meta_llama_3_1_8b_instruct"]
+
+    llms = [""]
+    experiment_id = ""
 
 
     messages_statistics = MessagesStatistics(
