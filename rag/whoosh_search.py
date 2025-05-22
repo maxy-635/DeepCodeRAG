@@ -109,6 +109,7 @@ class WhooshSearch(JiebaAnalyzer):
         :param query_str: 用户输入的查询字符串
         :param limit: 最多返回多少条结果
         :return: 检索结果组成的列表，每条结果包含字段信息和分数
+        注意：相似度检索的时候，设置一个阈值，低于这个阈值的结果不返回
         """
 
         def format_result(data, score):
@@ -132,12 +133,11 @@ class WhooshSearch(JiebaAnalyzer):
             # 执行 BM25F 精确搜索
             results = searcher.search(query, limit=limit, scored=True)
             if results:
-                logger.info(f"{query}精确检索成功")
+                logger.info(f"BM精确检索成功")
                 # 将搜索结果格式化并返回
                 output = [format_result(result, result.score) for result in results]
 
             else:
-                logger.info(f"{query}精确检索失败，进行相似度检索")
                 # 读取所有已存储的文档，进行相似度比较
                 all_docs = searcher.reader().all_stored_fields()
                 candidates = []
@@ -149,10 +149,12 @@ class WhooshSearch(JiebaAnalyzer):
 
                 # 对候选文档按相似度从高到低排序，选出前 limit 个
                 candidates.sort(key=lambda item: item[0], reverse=True)
-                top_docs = candidates[:limit]
+                candidates = candidates[:limit] # 取前 limit 个
 
-                logger.info(f"{query}相似度检索成功")
+                threshold = 0.7
+                top_docs = [(score, doc) for score, doc in candidates if score >= threshold]
 
+                logger.info(f"相似度检索成功")
                 output = [format_result(doc, score) for score, doc in top_docs]
 
             return output
@@ -163,12 +165,9 @@ class WhooshSearch(JiebaAnalyzer):
         主函数，根据索引是否存在决定是否构建索引，然后进行检索
         """
         if not self.index_created:
-            logger.info("索引不存在，正在创建索引...")
             self.add_documents()
-            logger.info("索引创建完成，正在进行检索...")
             results = self.search(query_str, limit)
         else:
-            logger.info("索引已存在，直接进行检索...")
             results = self.search(query_str, limit)
         
         return results
@@ -176,12 +175,12 @@ class WhooshSearch(JiebaAnalyzer):
 
 if __name__ == "__main__":
     searcher = WhooshSearch(
-                        index_dir="./database/whoosh_tf_apis_index_0521",
+                        index_dir="./database/whoosh_tf_apis_index_0522",
                         docs_path='./api_parser/tensorflow/apis_parsed_results'
                         )
 
     question = '''
-tensorflow.keras.layers.AveragePool2D
+tf.keras.layers.Input
 '''
     results = searcher.main(
         query_str=question,
@@ -189,6 +188,7 @@ tensorflow.keras.layers.AveragePool2D
     )
     # 输出检索结果
     print(f"检索到 {len(results)} 条结果：")
+    print(results)
     for result in results:
         api_doc = (
                 f"{result['api_name']}\n\n"

@@ -102,7 +102,8 @@ class DocumentProcessor:
         # maxy0521 增补, 根据api_description和api_details综合生成api_usage_description_str
         # API Usage Description
         api_usage_description_str = ""
-        if api_description and api_details:
+        # api_description 或 api_details 存在一个即可
+        if api_description or api_details:
             api_usage_description_str += f"**API Usage Description**:\n{api_description} {api_details}"
         # 好像不存在下面的情况
         # if !api_description:
@@ -120,7 +121,7 @@ class DocumentProcessor:
             # 注意：即使api_parameters长度大于5, 也可以安全返回结果。Python 的列表切片机制是 容错的
             for param in api_parameters[:5]: 
                 for name, desc in param.items():
-                    api_parameters_str += f"\n{name}: {desc.strip()}"
+                    api_parameters_str += f"\n{[name]}: {desc.strip()}"
         else:
             api_parameters_str += "**API Parameters**:None"
 
