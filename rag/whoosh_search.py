@@ -7,6 +7,8 @@
 import os
 import jieba
 import Levenshtein
+from rouge import rouge_l_sentence_level
+from loguru import logger
 from document_processor import DocumentProcessor
 from whoosh.index import create_in, open_dir
 from whoosh.fields import Schema, TEXT
@@ -98,102 +100,75 @@ class WhooshSearch(JiebaAnalyzer):
 
         writer.commit()
 
+
     def search(self, query_str, limit):
         """
-        使用 BM25F 模型进行检索；
-        注意：默认为BM25F模型，参数 B=0.75, K1=1.2
-        :param query_str: 查询字符串
-        :param limit: 返回结果数量限制
-        :return: 检索结果列表
-        注意：目前设置为 按照 api_name 进行检索，其他信息 只作为匹配后的输出信息。即单字段检索
+        使用 BM25F 模型进行检索，默认为单字段（api_name）检索。
+        如果没有检索到结果，则使用 ROUGE-L 相似度作为回退方案。
+        
+        :param query_str: 用户输入的查询字符串
+        :param limit: 最多返回多少条结果
+        :return: 检索结果组成的列表，每条结果包含字段信息和分数
         """
 
-        # 配置多字段查询解析器
-        # field_weights = {
-        #     "api_name": 1.0,
-        #     "api_description": 1.0,
-        #     "api_signature": 1.0,
-        #     "api_details": 1.0,
-        #     "api_parameters": 1.0,
-        #     "api_usage_example": 1.0
-        # }
-        # parser = MultifieldParser(
-        #     list(field_weights.keys()),
-        #     schema=self.schema,
-        #     fieldboosts=field_weights,
-        # )
+        def format_result(data, score):
+            """构造统一格式的输出结果。"""
+            return {
+                "api_name": data["api_name"],
+                "api_description": data["api_description"],
+                "api_signature": data["api_signature"],
+                "api_details": data["api_details"],
+                "api_usage_description": data["api_usage_description"],
+                "api_parameters": data["api_parameters"],
+                "api_usage_example": data["api_usage_example"],
+                "score": round(score, 4)
+            }
 
-        # 直接使用 QueryParser 进行单字段检索
         with self.ix.searcher(weighting=BM25F(B=0.75, K1=1.2)) as searcher:
+            # 使用 QueryParser 对查询字符串进行解析
             parser = QueryParser("api_name", schema=self.schema)
             query = parser.parse(query_str)
-            results = searcher.search(query, limit=limit, scored=True)
 
-            output = []
+            # 执行 BM25F 精确搜索
+            results = searcher.search(query, limit=limit, scored=True)
             if results:
-                print("精确检索成功，结果如下：")
-                for hit in results:
-                    output.append({
-                        "api_name": hit["api_name"],
-                        "api_description": hit["api_description"],
-                        "api_signature": hit["api_signature"],
-                        "api_details": hit["api_details"],
-                        "api_usage_description": hit["api_usage_description"],
-                        "api_parameters": hit["api_parameters"],
-                        "api_usage_example": hit["api_usage_example"],
-                        "score": round(hit.score, 4)
-                    })
+                logger.info(f"{query}精确检索成功")
+                # 将搜索结果格式化并返回
+                output = [format_result(result, result.score) for result in results]
+
             else:
-                print("精确检索失败，正在进行相似度检索...")
-                all_docs = searcher.reader().all_stored_fields()  # 返回 generator，每次一个文档
+                logger.info(f"{query}精确检索失败，进行相似度检索")
+                # 读取所有已存储的文档，进行相似度比较
+                all_docs = searcher.reader().all_stored_fields()
                 candidates = []
                 for doc in all_docs:
-                    name = doc["api_name"]
+                    api_name = doc["api_name"]
+                    # 使用 ROUGE-L 计算相似度（只用 f1-score）
+                    _, _, f1 = rouge_l_sentence_level(summary_sentence=query_str, reference_sentence=api_name)
+                    candidates.append((f1, doc))
 
+                # 对候选文档按相似度从高到低排序，选出前 limit 个
+                candidates.sort(key=lambda item: item[0], reverse=True)
+                top_docs = candidates[:limit]
 
-                    # 方法1:计算 Levenshtein 距离
-                    name = name.split('.')[-1]
-                    print(f"question: {query_str}, name: {name}")
-                    dist = Levenshtein.distance(question, name)
-                    similarity = 1 - dist / max(len(question), len(name))
+                logger.info(f"{query}相似度检索成功")
 
-                    # 方法2:计算 Jaccard 相似度
-                    # def jaccard_similarity(a, b):
-                    #     set_a = set(a)
-                    #     set_b = set(b)
-                    #     return len(set_a & set_b) / len(set_a | set_b)
-                    # similarity = jaccard_similarity(question, name)
+                output = [format_result(doc, score) for score, doc in top_docs]
 
-                    candidates.append((similarity, doc))
+            return output
 
-                # 根据相似度进行排序并取 Top K
-                jls_extract_var = candidates
-                jls_extract_var.sort(reverse=True, key=lambda x: x[0])
-                top_k = candidates[:5]
-                for _, doc in top_k:
-                    output.append({
-                        "api_name": doc["api_name"],
-                        "api_description": doc["api_description"],
-                        "api_signature": doc["api_signature"],
-                        "api_details": doc["api_details"],
-                        "api_usage_description": doc["api_usage_description"],
-                        "api_parameters": doc["api_parameters"],
-                        "api_usage_example": doc["api_usage_example"],
-                    })
-
-        return output
     
     def main(self, query_str, limit):
         """
         主函数，根据索引是否存在决定是否构建索引，然后进行检索
         """
         if not self.index_created:
-            print("索引不存在，正在创建索引...")
+            logger.info("索引不存在，正在创建索引...")
             self.add_documents()
-            print("索引创建完成，正在进行检索...")
+            logger.info("索引创建完成，正在进行检索...")
             results = self.search(query_str, limit)
         else:
-            print("索引已存在，直接进行检索...")
+            logger.info("索引已存在，直接进行检索...")
             results = self.search(query_str, limit)
         
         return results
@@ -206,8 +181,8 @@ if __name__ == "__main__":
                         )
 
     question = '''
-    MaxPooling2D
-    '''
+tensorflow.keras.layers.AveragePool2D
+'''
     results = searcher.main(
         query_str=question,
         limit=3
@@ -217,11 +192,12 @@ if __name__ == "__main__":
     for result in results:
         api_doc = (
                 f"{result['api_name']}\n\n"
-                f"{result['api_description']}\n"
-                f"{result['api_signature']}\n\n"
-                f"{result['api_details']}\n"
-                f"{result['api_usage_description']}\n\n"
-                f"{result['api_parameters']}\n\n"
-                f"{result['api_usage_example']}\n\n"
+                # f"{result['api_description']}\n"
+                # f"{result['api_signature']}\n\n"
+                # f"{result['api_details']}\n"
+                # f"{result['api_usage_description']}\n\n"
+                # f"{result['api_parameters']}\n\n"
+                # f"{result['api_usage_example']}\n\n"
+                f"相似度分数: {result['score']}\n\n"
             )
         print(api_doc)
