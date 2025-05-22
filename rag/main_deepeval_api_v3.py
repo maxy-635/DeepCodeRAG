@@ -232,7 +232,6 @@ class MultiDLcodeGeneration:
 
                                 api_docs.append("\n")
                                 api_docs.append(api_doc)
-                                # api_docs.append("-"*100)
 
                             api_name_set.add(candidate_api_name)
         except:
@@ -265,7 +264,7 @@ class MultiDLcodeGeneration:
         benchmark_files = get_all_files(directory=benchmark_path, file_type=".yaml")
 
         logger.info(f"开始进行深度学习代码生成任务")
-        for yaml_file in benchmark_files[:1]:  
+        for yaml_file in benchmark_files:  
             task_id = "/" + os.path.basename(yaml_file)[:-5]
             task= read_yaml_data(yaml_file)
             task_requirement = task['Requirement']

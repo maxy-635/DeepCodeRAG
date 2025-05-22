@@ -6,6 +6,7 @@ import os
 import re
 import argparse
 import torch
+import traceback
 from loguru import logger
 from deepcode_generation import DLcodeGeneration
 from rag.whoosh_search import WhooshSearch,JiebaAnalyzer
@@ -54,7 +55,7 @@ class MultiDLcodeGeneration:
         self.model, self.tokenizer = self.chat2llm().load_model(
             inference_model_id, model_cache_path, data_dtype
         )
-        logger.info(f"推理模型 {inference_model_id} 初始化加载成功！")
+        logger.info(f"加载推理模型 {inference_model_id}")
 
         # 2. 初始化 关键词检索模型
         self.api_docs_path = api_docs_path
@@ -131,36 +132,29 @@ class MultiDLcodeGeneration:
 
                         # 只进行层相关layer API的检索，避免提示词过长
                         if 'layer' in candidate_api_name:
-                            # 下面这行 关于tf.keras.layers.MaxPooling2D的修改是 为了 GPT-4o-mini
-                            if candidate_api_name == 'tf.keras.layers.MaxPooling2D':
-                                candidate_api_name = 'tf.keras.layers.MaxPool2D'
-
-                            logger.info(f"第二次关键词检索的candidate_api_names: {candidate_api_name}")
+                            logger.info(f"开始检索: {candidate_api_name}")
                             # 进行关键词检索, 注意每次只取top-1的结果
                             results = self.bm25searcher.main(query_str=candidate_api_name, limit=1)
-                            if not results:
+                            if not results: # 如果 results 为空
                                 logger.info(f"未找到与 {candidate_api_name} 匹配的 API 文档")
                                 continue
 
                             for result in results:
-                                # 0521修改，只取用top-5的api_parameters，此处输出的api_parameters 长字符串
-                                # 0521修改，取消 api_signature 的默认参数值
-                                # 0521修改，整合 api_description 和 api_details
                                 api_doc = (
-                                    f"{result['api_name']}\n\n"
+                                    f"{result['api_name']}\n"
                                     # f"{result['api_description']}\n"
-                                    f"{result['api_signature']}\n\n"
+                                    # f"{result['api_signature']}\n"
                                     # f"{result['api_details']}\n"
-                                    f"{result['api_usage_description']}\n\n"
-                                    f"{result['api_parameters']}\n\n"
-                                    f"{result['api_usage_example']}\n\n"
+                                    f"{result['api_usage_description']}\n"
+                                    f"{result['api_parameters']}\n"
+                                    # f"{result['api_usage_example']}\n\n"
                                 )
+
+                                api_docs.append("\n")
                                 api_docs.append(api_doc)
 
                         api_name_set.add(candidate_api_name)
-        except Exception as e:
-            import traceback
-            # 打印完整的异常信息
+        except:
             logger.info(f"执行代码时发生错误: {traceback.format_exc()}")
         
         # ----------------------------------------------------------------------------------------
