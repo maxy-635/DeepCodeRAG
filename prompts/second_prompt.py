@@ -46,7 +46,7 @@ def dl_model():
         prompt = f"""
 As a developer specializing in deep learning, you are expected to complete the following DL code generation task: \n# Task:\n{task_requirement}\n
 Please analyze the following API usage tutorial to ensure your code is executable: \n# API Usage Tutorial:{api_doc}\n
-Please import all necessary Functional APIs of {dll}, then complete python code in the 'dl_model()' function and return the constructed 'model'.
+Please import {dll} and all necessary Functional APIs of {dll}, then complete python code in the 'dl_model()' function and return the constructed 'model'.
 ```python
 def dl_model():
 
