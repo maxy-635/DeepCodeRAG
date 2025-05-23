@@ -200,7 +200,8 @@ class Validation:
 
 
 if __name__ == "__main__":
-    common_root_path = "/Users/maxy/Documents/pythonProject/my_experiemnt/DeepCodeRAG"
+    # common_root_path = "/Users/maxy/Documents/pythonProject/my_experiemnt/DeepCodeRAG"
+    common_root_path = "/data/home/sczc725/run/DeepCodeRAG"
     promptings =["zeroshot_rag"]
 
     # llms = ["gpt_4o",
@@ -212,9 +213,9 @@ if __name__ == "__main__":
     #         "gemma_2_9b_it",
     #         "meta_llama_3_1_8b_instruct"]
 
-    llms = []
+    llms = ["meta_llama_3_1_8b_instruct"]
 
-    experiment_id = ""
+    experiment_id = "models_experiment_0522_night"
 
     compile_validation = Validation()
     compile_validation.main(promptings, llms, experiment_id)

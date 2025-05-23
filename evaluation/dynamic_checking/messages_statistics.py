@@ -169,7 +169,7 @@ class MessagesStatistics:
 
             for prompting in self.promptings:
                 # 读取json文件，统计messages信息
-                with open(self.report_jsons+f'/{llm}/models_{self.experiment_id}/{prompting}.json', "r") as file:
+                with open(self.report_jsons+f'/{llm}/{self.experiment_id}/{prompting}.json', "r") as file:
                     data_list = json.load(file)
 
                 message_counts[llm][prompting] = []
@@ -342,8 +342,8 @@ if __name__ == '__main__':
     #         "gemma_2_9b_it",
     #         "meta_llama_3_1_8b_instruct"]
 
-    llms = [""]
-    experiment_id = ""
+    llms = ["meta_llama_3_1_8b_instruct"]
+    experiment_id = "models_experiment_0522_night"
 
 
     messages_statistics = MessagesStatistics(
