@@ -34,13 +34,11 @@ class MultiDLcodeGeneration:
         """
         Paras:
         1.inference_model_id: str, 要调用的LLM推理模型
-        2.embedding_model_id: str, 要使用的Embedding模型
-        3.api_docs_path: str, API文档路径
-        4.embedding_vector_path: str, 向量存储路径
-        5.matching_index_path: str, 匹配索引路径
-        6.model_cache_path: str, 模型缓存路径
-        7.sava_code_last_path: str, 需要用户指定的代码保存文件夹命名
-        8.sava_log_last_path: str, 需要用户指定的日志保存文件夹命名
+        2.api_docs_path: str, API文档路径
+        3.matching_index_path: str, 匹配索引路径
+        4.model_cache_path: str, 模型缓存路径
+        5.sava_code_last_path: str, 需要用户指定的代码保存文件夹命名
+        6.sava_log_last_path: str, 需要用户指定的日志保存文件夹命名
         """
         # 1. 初始化 LLM推理模型,只在这里加载一次
         if "deepseek" in inference_model_id:
@@ -127,7 +125,7 @@ class MultiDLcodeGeneration:
             else:
                 api_name_set = set()
                 for candidate_api in candidate_apis:
-                    candidate_api_name = candidate_api['api_name']
+                    candidate_api_name = candidate_api['api_name'].replace('tensorflow', 'tf')
                     if candidate_api_name not in api_name_set: # 去重
 
                         # 只进行层相关layer API的检索，避免提示词过长
@@ -153,7 +151,7 @@ class MultiDLcodeGeneration:
                                 api_docs.append("\n")
                                 api_docs.append(api_doc)
 
-                        api_name_set.add(candidate_api_name)
+                            api_name_set.add(candidate_api_name)
         except:
             logger.info(f"执行代码时发生错误: {traceback.format_exc()}")
         
@@ -202,9 +200,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--model_local_path", type = str, help="The LLM local path")
     parser.add_argument("--inference_model_id", type = str, help="The Inference LLM id")
-    parser.add_argument("--embedding_model_id", type = str, help="The Embedding model id")
     parser.add_argument("--api_docs_path", type = str, help="The API docs path for embedding and best matching")
-    parser.add_argument("--embedding_vector_path", type = str, help="The vector store path")
     parser.add_argument("--matching_index_path", type = str, help="The index path for best matching")
     parser.add_argument("--benchmark", type = str, help="The benchmark dataset path")
     parser.add_argument("--repeats", type = int, help="The repeat times")
@@ -217,10 +213,8 @@ if __name__ == "__main__":
     multi_DLcode_Generator = MultiDLcodeGeneration(
         model_cache_path=args.model_local_path,
         inference_model_id=args.inference_model_id,
-        embedding_model_id= args.embedding_model_id,
         api_docs_path=args.api_docs_path,
         data_dtype=torch.bfloat16,
-        embedding_vector_path=args.embedding_vector_path,
         matching_index_path=args.matching_index_path,
         sava_code_last_path="models_" + args.experiment_id,
         sava_log_last_path="logs_" + args.experiment_id,
