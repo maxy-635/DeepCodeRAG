@@ -1,3 +1,4 @@
+import os
 import time
 import openai
 
@@ -26,7 +27,7 @@ class Chat2GPTLLM:
 
     def chat(self, prompting, model_id, temperature, top_p, max_tokens):
 
-        api_key = "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"
+        api_key = os.environ["OPENAI_API_KEY"]
         openai.api_key = api_key  # openai==0.27.2版本API的调用方法
 
         response = openai.ChatCompletion.create(
